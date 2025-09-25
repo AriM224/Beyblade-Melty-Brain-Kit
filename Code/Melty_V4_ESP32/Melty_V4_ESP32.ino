@@ -1,7 +1,7 @@
 #include <esp_task_wdt.h>
 #include <Wire.h>
 #include <SparkFun_LIS331.h>
-#include <Adafruit_DotStar.h>
+#include <Adafruit_NeoPixel.h>
 #include <SPI.h>
 #include <IBusBM.h>
 #include <WiFi.h>
@@ -12,12 +12,13 @@
 #include <DShotESC.h>
 #include <EEPROM.h>
 
-#define WDT_TIMEOUT 2  // seconds
+#define WDT_TIMEOUT 5  // seconds
 #define ACCEL_RANGE LIS331::HIGH_RANGE  //sets to 400g range
 #define ACCEL_MAX_SCALE 400
 #define ACCEL_I2C_ADDRESS 0x18
-#define DATAPIN    A2  //LED SDI
-#define CLOCKPIN   A3  //LED CKI
+#define top_led_pin A3  //top led strip pin
+#define bottom_led_pin A2  //bottom led strip pin
+#define NUMPIXELS 10 //number of leds in the strip
 
 const char *ssid = "Brain_Rot"; //wifi ssid
 const char *password = "meltybrain"; //wifi password
@@ -33,8 +34,9 @@ IBusBM IBus;    // IBus object
 //use IBus.loop(); to update channels (only if interrupt timer is disabled)
 //returns a value from 1000-2000
 LIS331 xl;
-Adafruit_DotStar strip(2, DATAPIN, CLOCKPIN); //sets pins and number of LEDs (2)
-//controlling LEDs: strip.setPixelColor(index, red, green, blue); 
+Adafruit_NeoPixel top_strip(NUMPIXELS, top_led_pin, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel bottom_strip(NUMPIXELS, bottom_led_pin, NEO_GRB + NEO_KHZ800);
+//controlling LEDs:  strip.setPixelColor(Pixel #, RgbColor(255, 255, 255)); 
 //index is pixel number starting from 0
 //rgb values range from 0-255
 //use strip.show(); to update LED
@@ -47,7 +49,7 @@ DShotESC esc2;     // create servo object to control the right esc
                //library uses values between -999 and 999 to control speed of esc
               //esc1.sendThrottle3D(throttle);    //Sends the signal to the ESC
              //g force: In millimeters: G-Force = 0.0001118 x Rotor Radius x (RPM)²
-const int RXpin = 0;
+const int RXpin = RX;
 const int accradius = 20; //radius where the g force sensor is located in millimeters
 const int NUM_CHANNELS = 6; //number of reciever channels to use
 int pwm[NUM_CHANNELS];
@@ -62,7 +64,7 @@ float heading = 1.0;
 int LEDheading = 340; //degree where the LED heading is centered
 float offset = 1.0; //creates variable to tune heading
 unsigned long long duration; //defines variable for decel duration in microseconds
-int percentdecel = 20; //percentage of rotation the translation deceleration wave occurs for each motor. Should be less than or equal to 50
+int percentdecel = 20; //percentage of rotation the translation deceleration wave occurs for each motor. Should be <= 50
 int transpeed; //variable to store movement speed 0-100 from ch2 duty
 unsigned long long dtime; //variable for the time it's been since decel start
 unsigned long long startime; //variable to store the time in microseconds that the decel started
@@ -95,6 +97,7 @@ String LEDColor = "GREEN";
 int last_rec;
 int rec_gap;
 int rec_last;
+bool safe = false;
 
 //--------------------------------------------------------------------------------------------
 void setup() 
@@ -111,13 +114,15 @@ void setup()
   xl.setI2CAddr(ACCEL_I2C_ADDRESS); //has to do with the g force sensor
   xl.begin(LIS331::USE_I2C);  //begins reading it?
   xl.setFullScale(ACCEL_RANGE); //sets sensor scale
-  IBus.begin(Serial0, IBUSBM_NOTIMER);    // iBUS object connected to serial RX pin and disables interrupt timer
-  strip.begin(); // Initialize pins for output
-  strip.show();  // Turn all LEDs off ASAP
+  IBus.begin(Serial1, IBUSBM_NOTIMER);    // iBUS object connected to serial RX pin and disables interrupt timer
+  top_strip.begin(); //initializes LEDs
+  bottom_strip.begin();
+  top_strip.clear();  // Turn all LEDs off ASAP
+  bottom_strip.clear();
   ArduinoOTA.setHostname("esp32-ap"); //wifi ota config
   ArduinoOTA.setPassword("admin"); //enter this if window opens in arduino IDE asking for pswrd
-  esc1.install(GPIO_NUM_5, RMT_CHANNEL_0); //defines esc pins
-  esc2.install(GPIO_NUM_6, RMT_CHANNEL_1);
+  esc1.install(GPIO_NUM_36, RMT_CHANNEL_2); //defines esc pins
+  esc2.install(GPIO_NUM_37, RMT_CHANNEL_3);
   esc1.init();
 	esc1.setReversed(false);
 	esc1.set3DMode(true);
@@ -132,7 +137,7 @@ void setup()
     esc2.beep(i);
     delay(1);
 	}
-  esp_task_wdt_init(WDT_TIMEOUT, true);  // Enable panic so ESP32 restarts, esp_task_wdt_reset(); feeds watchdog
+  esp_task_wdt_init(WDT_TIMEOUT, false);  // Enable panic so ESP32 restarts, esp_task_wdt_reset(); feeds watchdog
   esp_task_wdt_add(NULL);  // Add current thread (loopTask) to WDT
   //Serial.print("Setup Complete");
   
@@ -240,7 +245,6 @@ void update_channels()
   chanstart = millis();
   }
   
-  return;
 }
 void data_export()    //exports data to telnet client for diagnostics, wifi mode must be turned on first
 {
@@ -263,14 +267,12 @@ void data_export()    //exports data to telnet client for diagnostics, wifi mode
 }
 void wifi_mode()   //turns on wifi mode to connect wirelessly
 {
-  esp_task_wdt_init(WDT_TIMEOUT, false);  // disable watchdog
+  failsafe();
   WiFi.softAP(ssid, password);
   //Serial.print("Wifi Mode");
   ArduinoOTA.begin();  //starts ota
   while(duty[5] > 50)  //stuck in loop so robot cannot run while in wifi mode, channel 5 initiates wifi
   {
-    failsafe();
-    update_channels();
     updateLED();
     ArduinoOTA.handle();
     if(duty[6] < 50)  //if export switch is not triggered, will not export
@@ -296,39 +298,46 @@ void wifi_mode()   //turns on wifi mode to connect wirelessly
     }
   }
   WiFi.softAPdisconnect(false);  //turn off wifi
-  esp_task_wdt_init(WDT_TIMEOUT, true);  // enable watchdog
+  safe = false;
 }
 void failsafe() //failsafe mode, shuts off all motors
 {
-  LEDColor = "RED";
-  motor2 = 0;
-  motor1 = 0;
-  update_motors();
+      LEDColor = "RED";
+      motor2 = 0;
+      motor1 = 0;
+      update_motors();
 }
 void updateLED()
 {
   if(LEDColor.equals("RED"))
   {
-    strip.fill(strip.Color(0, 0, 255), 0, 2);
+    top_strip.fill(top_strip.Color(0, 0, 255), 0, 10);
+    bottom_strip.fill(top_strip.Color(0, 0, 255), 0, 10);
   }
   else if(LEDColor.equals("BLUE"))
   {
-    strip.fill(strip.Color(255, 0, 0), 0, 2);
+    top_strip.fill(top_strip.Color(255, 0, 0), 0, 10);
+    bottom_strip.fill(top_strip.Color(255, 0, 0), 0, 10);
   }
   else if(LEDColor.equals("GREEN"))
   {
-    strip.fill(strip.Color(0, 255, 0), 0, 2);
+    top_strip.fill(top_strip.Color(0, 255, 0), 0, 10);
+    bottom_strip.fill(top_strip.Color(0, 255, 0), 0, 10);
   }
   else if(LEDColor.equals("WHITE"))
   {
-    strip.fill(strip.Color(255, 255, 255), 0, 2);
+    top_strip.fill(top_strip.Color(255, 255, 255), 0, 10);
+    bottom_strip.fill(top_strip.Color(255, 255, 255), 0, 10);
   }
   else if(LEDColor.equals("OFF"))
   {
-    strip.clear();
+    top_strip.clear();
+    bottom_strip.clear();
   }
-  strip.show();
+  top_strip.show();
+  bottom_strip.show();
 }
+
 void update_motors()
 {
   if(((esp_timer_get_time() - motor1sent) > 100) && (esp_timer_get_time() - motor2sent) > 100 && motor1send == true)
@@ -364,24 +373,21 @@ void heading_adj()
   if(duty[4] < 30 && off_set == false)
   {
     offset = offset + 0.001;
-    saveOffsetToEEPROM(offset);
+    EEPROM.put(OFFSET_ADDR, offset);
+    EEPROM.commit();  // Required on ESP32 to finalize the write
     off_set = true;
   }
   else if(duty[4] > 70 && off_set == false)
   {
     offset = offset - 0.001;
-    saveOffsetToEEPROM(offset);
+    EEPROM.put(OFFSET_ADDR, offset);
+    EEPROM.commit();  // Required on ESP32 to finalize the write
     off_set = true;
   }
   else if(duty[4] > 40 && duty[4] < 60)
   {
     off_set = false;
   }
-}
-void saveOffsetToEEPROM(float val)
-{
-  EEPROM.put(OFFSET_ADDR, val);
-  EEPROM.commit();  // Required on ESP32 to finalize the write
 }
 
 float readOffsetFromEEPROM()
@@ -393,6 +399,7 @@ float readOffsetFromEEPROM()
   }
   return val;
 }
+
 void spin()
 {
   if(reversed == true)
@@ -470,7 +477,6 @@ void translate()
 //----------------------------------------------------------------------------------------
 void loop() 
 {
-  
   update_channels();
   heading_adj();
   heading_funct();

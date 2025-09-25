@@ -1,0 +1,25 @@
+# Keywords for the Telnet Arduino Library
+
+Telnet            KEYWORD1
+beginAP           KEYWORD2
+beginClient       KEYWORD2
+startServer       KEYWORD2
+stopServer        KEYWORD2
+handleClient      KEYWORD2
+addCommand        KEYWORD2
+setAlias          KEYWORD2
+setPrompt         KEYWORD2
+setTimeout        KEYWORD2
+showBanner        KEYWORD2
+showPrompt        KEYWORD2
+handleCommand     KEYWORD2
+showHelp          KEYWORD2
+
+DEFAULT_TIMEOUT   CONSTANT
+MAX_CLIENTS       CONSTANT
+
+WiFiServer        KEYWORD1
+WiFiClient        KEYWORD1
+std::function     KEYWORD1
+std::bind         KEYWORD1
+std::placeholders KEYWORD1
