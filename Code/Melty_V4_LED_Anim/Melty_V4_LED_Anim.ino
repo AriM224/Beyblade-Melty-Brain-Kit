@@ -35,8 +35,8 @@ IBusBM IBus;    // IBus object
 //use IBus.loop(); to update channels (only if interrupt timer is disabled)
 //returns a value from 1000-2000
 LIS331 xl;
-Adafruit_NeoPixel top_strip(NUMPIXELS, top_led_pin, NEO_RBG + NEO_KHZ800);
-Adafruit_NeoPixel bottom_strip(NUMPIXELS, bottom_led_pin, NEO_RBG + NEO_KHZ800);
+Adafruit_NeoPixel top_strip(NUMPIXELS, top_led_pin, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel bottom_strip(NUMPIXELS, bottom_led_pin, NEO_GRB + NEO_KHZ800);
 //controlling LEDs:  strip.setPixelColor(Pixel #, RgbColor(255, 255, 255)); 
 //index is pixel number starting from 0
 //rgb values range from 0-255
@@ -62,10 +62,10 @@ unsigned long long min_spintime = 100000000; //large number to start with
 unsigned long long currentime; //timer variable
 unsigned long long previoustime = 0; //will store last time that was updated
 float heading = 1.0;
-int LEDheading = 340; //degree where the LED heading is centered
+int LEDheading = 320; //degree where the LED heading is centered
 float offset = 1.0; //creates variable to tune heading
 unsigned long long duration; //defines variable for decel duration in microseconds
-int percentdecel = 15; //percentage of rotation the translation deceleration wave occurs for each motor. Should be <= 50
+int percentdecel = 20; //percentage of rotation the translation deceleration wave occurs for each motor. Should be <= 50
 int transpeed; //variable to store movement speed 0-100 from ch2 duty
 unsigned long long dtime; //variable for the time it's been since decel start
 unsigned long long startime; //variable to store the time in microseconds that the decel started
@@ -97,6 +97,7 @@ String LEDColor = "green";
 unsigned long lastUpdate = 0;   // last LED animation update time
 int animIndex = 0;              // position in LED animation
 int animSpeed = 100;            // ms between LED updates
+int direction = 1; // 1 = forward, -1 = backward
 int last_rec;
 int rec_gap;
 int rec_last;
@@ -140,7 +141,7 @@ void setup()
     esc2.beep(i);
     delay(1);
 	}
-  esp_task_wdt_init(WDT_TIMEOUT, false);  // Enable panic so ESP32 restarts, esp_task_wdt_reset(); feeds watchdog
+  esp_task_wdt_init(WDT_TIMEOUT, true);  // Enable panic so ESP32 restarts, esp_task_wdt_reset(); feeds watchdog
   esp_task_wdt_add(NULL);  // Add current thread (loopTask) to WDT
   //Serial.print("Setup Complete");
   
@@ -181,24 +182,35 @@ long long spintimefunct()
   }
   return spintime;
 }
-float get_accel_force_g()  //gets the g force in the y direction from the sensor and returns value between 0 - 400 gs
-{
-  if((esp_timer_get_time() - loopstart) > 20)
-  {
+float get_accel_force_g() {
+  static const int NUM_SAMPLES = 10;  // average over last 10 readings
+  static float samples[NUM_SAMPLES];
+  static int index = 0;
+  static bool filled = false;
+  static float total = 0.0;
+
+  if ((esp_timer_get_time() - loopstart) > 20000) {
     int16_t x, y, z;
     xl.readAxes(x, y, z);
-    gforce = xl.convertToG(ACCEL_MAX_SCALE,y);
+    gforce = xl.convertToG(ACCEL_MAX_SCALE, y);
     loopstart = esp_timer_get_time();
+
+    // update rolling average
+    total -= samples[index];
+    samples[index] = gforce;
+    total += gforce;
+
+    index = (index + 1) % NUM_SAMPLES;
+    if (index == 0) filled = true;
+
+    if (round(gforce) > max_gforce) {
+      max_gforce = round(gforce);
+    }
   }
-  else
-  {
-    return gforce;
-  }
-  if(round(gforce) > max_gforce)
-  {
-    max_gforce = round(gforce);
-  }
-  return gforce;
+
+  // return current average
+  if (filled) return total / NUM_SAMPLES;
+  else return total / (index + 1); // partial average while filling buffer
 }
 int rotation_angle()
 {
@@ -276,6 +288,7 @@ void data_export()    //exports data to telnet client for diagnostics, wifi mode
 void wifi_mode()   //turns on wifi mode to connect wirelessly
 {
   failsafe();
+  esp_task_wdt_init(WDT_TIMEOUT, false);  // disable watchdog
   WiFi.softAP(ssid, password);
   //Serial.print("Wifi Mode");
   ArduinoOTA.begin();  //starts ota
@@ -307,6 +320,7 @@ void wifi_mode()   //turns on wifi mode to connect wirelessly
     }
   }
   WiFi.softAPdisconnect(false);  //turn off wifi
+  esp_task_wdt_init(WDT_TIMEOUT, true);  // enable watchdog
 }
 void failsafe() //failsafe mode, shuts off all motors
 {
@@ -315,191 +329,6 @@ void failsafe() //failsafe mode, shuts off all motors
       motor1 = 0;
       update_motors();
       updateLED();
-}
-void updateLED() {
-  unsigned long currentMillis = millis();
-
-  // only update if enough time has passed
-  if (currentMillis - lastUpdate > animSpeed) 
-  {
-     // advance animation index
-     animIndex++;
-     lastUpdate = currentMillis;
-  }
-
-  // Example animation logic depending on LEDStatus:
-  if (LEDStatus == "failsafe") {
-    // flashing red
-    if (animIndex % 2 == 0) {
-      top_strip.fill(top_strip.Color(255, 0, 0), 0, 10);
-      bottom_strip.fill(top_strip.Color(255, 0, 0), 0, 10);
-    } else {
-      top_strip.clear();
-      bottom_strip.clear();
-    }
-  }
-  else if (LEDStatus == "armed") {
-    // green chase effect
-    top_strip.clear();
-    bottom_strip.clear();
-    int pos = animIndex % 10; // move along strip
-    top_strip.setPixelColor(pos, top_strip.Color(0, 255, 0));
-    bottom_strip.setPixelColor(pos, bottom_strip.Color(0, 255, 0));
-  }
-  else if (LEDStatus == "heading on") {
-    if (volts < 11.2) {
-      top_strip.fill(top_strip.Color(255, 165, 0), 0, 10); 
-      bottom_strip.fill(bottom_strip.Color(255, 165, 0), 0, 10);
-    } else {
-      // blue solid
-      top_strip.fill(top_strip.Color(0, 0, 255), 0, 10);
-      bottom_strip.fill(bottom_strip.Color(0, 0, 255), 0, 10);
-    }
-  }
-  else {
-    // off
-    top_strip.clear();
-    bottom_strip.clear();
-  }
-
-  top_strip.show();
-  bottom_strip.show();
-}
-
-void update_motors()
-{
-  if(((esp_timer_get_time() - motor1sent) > 100) && (esp_timer_get_time() - motor2sent) > 100 && motor1send == true)
-  {
-    esc1.sendThrottle3D(motor1);
-    motor1send = false;
-    motor1sent = esp_timer_get_time();
-  }
-  if((esp_timer_get_time() - motor2sent) > 100 && (esp_timer_get_time() - motor1sent) > 100 && motor1send == false)
-  {
-    esc2.sendThrottle3D(motor2);
-    motor1send = true;
-    motor2sent = esp_timer_get_time();
-  }
-}
-void heading_funct()
-{
-  if(reversed == true)
-  {
-    heading = (map(duty[1], 0, 100, 50, -50) * 0.001) + 1;
-  }
-  else
-  {
-    heading = (map(duty[1], 0, 100, -50, 50) * 0.001) + 1;
-  }
-}
-void heading_adj()
-{
-  if(offset <= 0.5)
-  {
-    offset = 1.0;
-  }
-  if(duty[4] < 30 && off_set == false)
-  {
-    offset = offset + 0.001;
-    EEPROM.put(OFFSET_ADDR, offset);
-    EEPROM.commit();  // Required on ESP32 to finalize the write
-    off_set = true;
-  }
-  else if(duty[4] > 70 && off_set == false)
-  {
-    offset = offset - 0.001;
-    EEPROM.put(OFFSET_ADDR, offset);
-    EEPROM.commit();  // Required on ESP32 to finalize the write
-    off_set = true;
-  }
-  else if(duty[4] > 40 && duty[4] < 60)
-  {
-    off_set = false;
-  }
-}
-
-float readOffsetFromEEPROM()
-{
-  float val;
-  EEPROM.get(OFFSET_ADDR, val);
-  if (isnan(val) || abs(val) > 360.0) { // sanity check
-    return 0.0;
-  }
-  return val;
-}
-
-void spin()
-{
-  if(reversed == true)
-  {
-    spinspeed = map(duty[3], 0, 100, 0, -1000);
-  }
-  else
-  {
-    spinspeed = map(duty[3], 0, 100, 0, 1000);
-  }
-  motor1 = spinspeed;
-  motor2 = spinspeed;
-}
-void translate()
-{
-  currentime = esp_timer_get_time();
-  duration = spintime * float(percentdecel *.01); //duration of total decel pulse
-  dtime = currentime - startime; //calculates time it's been since start of decel, will need a way to start the timer when decel initiates
-  if(reversed == true)
-  {
-    spinspeed = map(duty[3], 0, 100, 0, -1000);
-    transpeed = map(duty[2], 0, 100, -100, 100);  //-100 to 100 and due to formula, - will automatically switch motor direction without needing separate if statements
-  }
-  else
-  {
-    spinspeed = map(duty[3], 0, 100, 0, 1000);
-    transpeed = map(duty[2], 0, 100, 100, -100);  //-100 to 100 and due to formula, - will automatically switch motor direction without needing separate if statements
-  }
-        if(angle > 180)
-        {
-          if(angle > 180 && angle < 250 && startimeset == false) //resets start time when 300 degrees is hit
-          {
-            startime = currentime;
-            dtime = 0;
-            startimeset = true;
-          }
-          if(angle > 250)
-          {
-            startimeset = false;
-          }
-          if(dtime < duration)
-          {
-            motor1 = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * 0.01)); //creates sine wave motor pulsing
-            motor2 = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * -0.01)); //creates inverse sine wave motor pulsing
-          }
-          else
-          {
-            spin();
-          }
-        }
-        else
-        {
-          if(angle < 80 && startimeset == false) //resets start time when 120 degrees is hit
-          {
-            startime = currentime;
-            dtime = 0;
-            startimeset = true;
-          }
-          if(angle > 80)
-          {
-            startimeset = false;
-          }
-          if(dtime < duration)
-          {
-            motor2 = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * 0.01)); //creates sine wave motor pulsing
-            motor1 = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * -0.01)); //creates inverse sine wave motor pulsing
-          }
-          else
-          {
-            spin();
-          }
-        }
 }
 
 //----------------------------------------------------------------------------------------
@@ -524,7 +353,7 @@ void loop()
     if(calcrpm() > 400)
     {
      angle = rotation_angle();
-     if(angle > (LEDheading - 10) && angle < (LEDheading + 10)) //turns the led on at 300 degree rotation
+     if (isAngleInRange(LEDheading, 10)) // LED turns on within ±10° of heading
      {
        LEDStatus = "heading on";
      }
