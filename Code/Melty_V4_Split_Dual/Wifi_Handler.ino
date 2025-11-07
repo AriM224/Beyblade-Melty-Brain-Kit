@@ -8,7 +8,6 @@ void wifi_mode()   //turns on wifi mode to connect wirelessly
   ArduinoOTA.begin();  //starts ota
   while(duty[5] > 50)  //stuck in loop so robot cannot run while in wifi mode, channel 5 initiates wifi
   {
-    failsafe();
     update_channels();
     ArduinoOTA.handle();
     if(duty[6] < 50)  //if export switch is not triggered, will not export
@@ -17,8 +16,9 @@ void wifi_mode()   //turns on wifi mode to connect wirelessly
     }
     if((duty[6] > 50) && (exportdata == false)) //if export switch is triggered and it has not exported yet, call export function
     {
-      LEDStatus = "export";
-      updateLED();
+      reserve_data();
+      Status = "export";
+      release_data();
       data_export();
       exportdata = true;
       escR.init();
@@ -33,6 +33,7 @@ void wifi_mode()   //turns on wifi mode to connect wirelessly
 	    }
     }
   }
+  Status = "armed";
   WiFi.softAPdisconnect(false);  //turn off wifi
   esp_task_wdt_init(WDT_TIMEOUT, true);  // enable watchdog
 }
@@ -48,7 +49,9 @@ void data_export()    //exports data to telnet client for diagnostics, wifi mode
   TelnetStream.print("Max RPM: ");
   TelnetStream.println(max_rpm);
   TelnetStream.print("loop time: ");
+  reserve_data();
   TelnetStream.println(loop_time);
+  release_data();
   TelnetStream.print("battery: ");
   TelnetStream.println(volts);
   TelnetStream.print("Max G-Force: ");

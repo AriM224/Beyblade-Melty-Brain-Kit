@@ -47,8 +47,8 @@ void data_export()    //exports data to telnet client for diagnostics, wifi mode
   TelnetStream.println("==== Sensor Data Export ====");
   TelnetStream.print("Max RPM: ");
   TelnetStream.println(max_rpm);
-  TelnetStream.print("loop time: ");
-  TelnetStream.println(loop_time);
+  //TelnetStream.print("loop time: ")
+  //TelnetStream.println(loop_time)
   TelnetStream.print("battery: ");
   TelnetStream.println(volts);
   TelnetStream.print("Max G-Force: ");

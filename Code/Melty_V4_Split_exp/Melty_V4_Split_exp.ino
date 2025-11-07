@@ -45,10 +45,10 @@ IBusBM IBus;    // IBus object
 const int NUM_CHANNELS = 6; //number of reciever channels to use
 
 //------Driving characteristcs------
-const int LEDheading = 320; //degree where the LED heading is centered, adjust for tuning heading vs driving direction
+const int LEDheading = 330; //degree where the LED heading is centered, adjust for tuning heading vs driving direction
 const int percentdecel = 20; //percentage of rotation the translation deceleration wave occurs for each motor. Should be <= 50
-const int accel_ag = 45; //0(least aggressive) - 100(most aggressive)
-const float accel_speed = (101 - accel_ag) * 0.02;
+//const int accel_ag = 45; //0(least aggressive) - 100(most aggressive)
+//const float accel_speed = (101 - accel_ag) * 0.02;
 
 //-------Wifi config---------
 const char *ssid = "Beyblade"; //wifi ssid

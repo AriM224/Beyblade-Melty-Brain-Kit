@@ -18,11 +18,11 @@ void spin()
 {
   if(reversed == true)
   {
-    spinspeed = max(map(duty[3], 0, 100, 0, -1000), long(-(rpm / accel_speed) - 100));
+    spinspeed = map(temp_duty[3], 0, 100, 0, -1000);
   }
   else
   {
-    spinspeed = min(map(duty[3], 0, 100, 0, 1000), long(rpm / accel_speed) + 100);
+    spinspeed = map(temp_duty[3], 0, 100, 0, 1000);
   }
   motorR = spinspeed;
   motorL = spinspeed;
@@ -31,19 +31,19 @@ void translate()
 {
   unsigned long long currentime;
   unsigned long long duration; //defines variable for decel duration in microseconds
-  int transpeed; //variable to store movement speed 0-100 from ch2 duty
+  int transpeed; //variable to store movement speed 0-100 from ch2 temp_duty
   currentime = esp_timer_get_time();
   duration = spintimefunct() * float(percentdecel *.01); //duration of total decel pulse
   dtime = currentime - startime; //calculates time it's been since start of decel, will need a way to start the timer when decel initiates
   if(reversed == true)
   {
-    spinspeed = max(map(duty[3], 0, 100, 0, -1000), long(-(rpm / accel_speed) - 100));
-    transpeed = map(duty[2], 0, 100, -100, 100);  //-100 to 100 and due to formula, - will automatically switch motor direction without needing separate if statements
+    spinspeed = map(temp_duty[3], 0, 100, 0, -1000);
+    transpeed = map(temp_duty[2], 0, 100, -100, 100);  //-100 to 100 and due to formula, - will automatically switch motor direction without needing separate if statements
   }
   else
   {
-    spinspeed = min(map(duty[3], 0, 100, 0, 1000), long(rpm / accel_speed) + 100);
-    transpeed = map(duty[2], 0, 100, 100, -100);  //-100 to 100 and due to formula, - will automatically switch motor direction without needing separate if statements
+    spinspeed = map(temp_duty[3], 0, 100, 0, 1000);
+    transpeed = map(temp_duty[2], 0, 100, 100, -100);  //-100 to 100 and due to formula, - will automatically switch motor direction without needing separate if statements
   }
         if(angle > 180)
         {

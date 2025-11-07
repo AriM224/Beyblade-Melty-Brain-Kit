@@ -18,11 +18,11 @@ void spin()
 {
   if(reversed == true)
   {
-    spinspeed = max(map(duty[3], 0, 100, 0, -1000), long(-(rpm / accel_speed) - 100));
+    spinspeed = map(duty[3], 0, 100, 0, -1000);
   }
   else
   {
-    spinspeed = min(map(duty[3], 0, 100, 0, 1000), long(rpm / accel_speed) + 100);
+    spinspeed = map(duty[3], 0, 100, 0, 1000);
   }
   motorR = spinspeed;
   motorL = spinspeed;
@@ -37,12 +37,12 @@ void translate()
   dtime = currentime - startime; //calculates time it's been since start of decel, will need a way to start the timer when decel initiates
   if(reversed == true)
   {
-    spinspeed = max(map(duty[3], 0, 100, 0, -1000), long(-(rpm / accel_speed) - 100));
+    spinspeed = map(duty[3], 0, 100, 0, -1000);
     transpeed = map(duty[2], 0, 100, -100, 100);  //-100 to 100 and due to formula, - will automatically switch motor direction without needing separate if statements
   }
   else
   {
-    spinspeed = min(map(duty[3], 0, 100, 0, 1000), long(rpm / accel_speed) + 100);
+    spinspeed = map(duty[3], 0, 100, 0, 1000);
     transpeed = map(duty[2], 0, 100, 100, -100);  //-100 to 100 and due to formula, - will automatically switch motor direction without needing separate if statements
   }
         if(angle > 180)
@@ -59,8 +59,8 @@ void translate()
           }
           if(dtime < duration)
           {
-            motorR = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * 0.01)); //creates sine wave motor pulsing
-            motorL = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * -0.01)); //creates inverse sine wave motor pulsing
+            motorR = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * 0.02)); //creates sine wave motor pulsing
+            motorL = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * -0.02)); //creates inverse sine wave motor pulsing
           }
           else
           {
@@ -81,8 +81,8 @@ void translate()
           }
           if(dtime < duration)
           {
-            motorL = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * 0.01)); //creates sine wave motor pulsing
-            motorR = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * -0.01)); //creates inverse sine wave motor pulsing
+            motorL = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * 0.02)); //creates sine wave motor pulsing
+            motorR = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * -0.02)); //creates inverse sine wave motor pulsing
           }
           else
           {

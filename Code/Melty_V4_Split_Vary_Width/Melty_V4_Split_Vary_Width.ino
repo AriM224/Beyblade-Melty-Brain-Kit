@@ -46,8 +46,8 @@ const int NUM_CHANNELS = 6; //number of reciever channels to use
 
 //------Driving characteristcs------
 const int LEDheading = 320; //degree where the LED heading is centered, adjust for tuning heading vs driving direction
-const int percentdecel = 20; //percentage of rotation the translation deceleration wave occurs for each motor. Should be <= 50
-const int accel_ag = 45; //0(least aggressive) - 100(most aggressive)
+int percentdecel = 20; //percentage of rotation the translation deceleration wave occurs for each motor. Should be <= 50
+const int accel_ag = 35; //0(least aggressive) - 100(most aggressive)
 const float accel_speed = (101 - accel_ag) * 0.02;
 
 //-------Wifi config---------
@@ -100,8 +100,8 @@ bool rc_status = false; //whether getting rc signal, used for triggering failsaf
 //----------other----------
 float volts; //variable to store current battery voltage
 int batloop; //variable for tracking battery update loop
-long loop_time;
-long loop_start;
+//long loop_time;
+//long loop_start;
 
 //--------------------------------------------------------------------------------------------
 void setup() 
@@ -227,8 +227,8 @@ void loop()
       LEDStatus = "armed";
     }
   updateLED();
-  loop_time = esp_timer_get_time() - loop_start;
+  //loop_time = esp_timer_get_time() - loop_start;
   update_motors();
-  loop_start = esp_timer_get_time();
+  //loop_start = esp_timer_get_time();
 
 }
