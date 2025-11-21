@@ -16,6 +16,7 @@ void update_motors()
 
 void spin()
 {
+  motor_on = false;
   if(reversed == true)
   {
     spinspeed = map(duty[3], 0, 100, 0, -1000);
@@ -61,6 +62,7 @@ void translate()
           {
             motorR = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * 0.02)); //creates sine wave motor pulsing
             motorL = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * -0.02)); //creates inverse sine wave motor pulsing
+            motor_on = true;
           }
           else
           {
@@ -83,6 +85,7 @@ void translate()
           {
             motorL = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * 0.02)); //creates sine wave motor pulsing
             motorR = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * -0.02)); //creates inverse sine wave motor pulsing
+            motor_on = true;
           }
           else
           {

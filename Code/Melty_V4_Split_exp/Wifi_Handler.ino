@@ -21,19 +21,19 @@ void wifi_mode()   //turns on wifi mode to connect wirelessly
       updateLED();
       data_export();
       exportdata = true;
-      escR.init();
-      delayMicroseconds(200);
-      escL.init();
-      for (int i = 0; i < 2; i++)
-	    {
-        delay(1);
-		    escR.beep(i);
-        delay(1);
-        escL.beep(i);
-	    }
     }
   }
   WiFi.softAPdisconnect(false);  //turn off wifi
+  escR.init();
+  delayMicroseconds(200);
+  escL.init();
+  for (int i = 0; i < 2; i++)
+  {
+    delay(1);
+    escR.beep(i);
+    delay(1);
+    escL.beep(i);
+  }
   esp_task_wdt_init(WDT_TIMEOUT, true);  // enable watchdog
 }
 

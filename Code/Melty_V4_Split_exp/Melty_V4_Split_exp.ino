@@ -102,6 +102,7 @@ float volts; //variable to store current battery voltage
 int batloop; //variable for tracking battery update loop
 long loop_time;
 long loop_start;
+bool motor_on = false;
 
 //--------------------------------------------------------------------------------------------
 void setup() 
@@ -160,10 +161,6 @@ void failsafe() //failsafe mode, shuts off all motors
       LEDStatus = "failsafe";
       motorR = 0;
       motorL = 0;
-      if(rc_status)
-      {
-        update_motors();
-      }
       updateLED();
 }
 
@@ -194,7 +191,11 @@ void loop()
      {
        LEDStatus = "heading on";
      }
-     else //turns off led at 50 degree rotation
+     else if(motor_on == true)
+     {
+       LEDStatus = "motor on";
+     }
+     else //turns off led
      {
        LEDStatus = "heading off";
      }

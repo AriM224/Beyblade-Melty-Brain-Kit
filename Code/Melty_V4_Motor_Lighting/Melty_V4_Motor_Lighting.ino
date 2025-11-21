@@ -11,8 +11,6 @@
 #include <Arduino.h>
 #include "DShotESC.h"
 #include <EEPROM.h>
-#include <FreeRTOS.h>
-#include <semphr.h>
 
 //------accelerometer config------------
 #define ACCEL_RANGE LIS331::HIGH_RANGE  //sets to 400g range
@@ -47,8 +45,10 @@ IBusBM IBus;    // IBus object
 const int NUM_CHANNELS = 6; //number of reciever channels to use
 
 //------Driving characteristcs------
-const int LEDheading = 320; //degree where the LED heading is centered, adjust for tuning heading vs driving direction
+const int LEDheading = 330; //degree where the LED heading is centered, adjust for tuning heading vs driving direction
 const int percentdecel = 20; //percentage of rotation the translation deceleration wave occurs for each motor. Should be <= 50
+//const int accel_ag = 45; //0(least aggressive) - 100(most aggressive)
+//const float accel_speed = (101 - accel_ag) * 0.02;
 
 //-------Wifi config---------
 const char *ssid = "Beyblade"; //wifi ssid
@@ -62,14 +62,12 @@ const int WDT_TIMEOUT = 5;  // seconds
 
 //=============GLOBAL VARIABLES==================
 //-------LED control-------
-String Status = "armed"; //tells LED control what mode to be in
-String LEDStatus;
+String LEDStatus = "armed"; //tells LED control what mode to be in
 unsigned long lastUpdate = 0;   // last LED animation update time
 long stripstart = 0;   //time of last update
 int animIndex = 0;     // position in LED animation
 int direction = 1; // 1 = forward, -1 = backward
 //-------rpm and heading calc--------
-int new_rpm;
 int rpm;
 unsigned long long previoustime = 0; //will store last time that was updated
 float heading = 1.0; //variable used to adjust heading using left transmitter stick
@@ -85,7 +83,7 @@ bool off_set = false;
 bool reversed = false;  //used for reverse spin direction
 unsigned long long motorLsent = 0; //motor send timers
 unsigned long long motorRsent = 1; //offsets it slightly from other motor
-bool motorRsend = true;  //used to switch which motor gets updated
+bool motorRsend = true;  //used to switch motor gets updated
 unsigned long loopstart = 0; //stores last gforce read time
 int motorL;
 int motorR;
@@ -95,19 +93,16 @@ bool motorLsend = true;
 unsigned long chanstart = 0; //stores last RX read time
 int pwm[NUM_CHANNELS]; //list values from 1000-2000
 int duty[NUM_CHANNELS]; //list values from 0 - 100
-int temp_duty[NUM_CHANNELS];
 int last_rec; //used to store update times for detecting signal loss
 int rec_gap;
 int rec_last;
-bool rc = false; //whether getting rc signal, used for triggering failsafe
-bool rc_status;
+bool rc_status = false; //whether getting rc signal, used for triggering failsafe
 //----------other----------
 float volts; //variable to store current battery voltage
 int batloop; //variable for tracking battery update loop
-int loop_start;
-int loop_time;
-TaskHandle_t fast;
-SemaphoreHandle_t dataMutex;
+long loop_time;
+long loop_start;
+bool motor_on = false;
 
 //--------------------------------------------------------------------------------------------
 void setup() 
@@ -143,15 +138,6 @@ void setup()
     escL.beep(i);
     delay(1);
 	}
-  dataMutex = xSemaphoreCreateMutex();
-  xTaskCreatePinnedToCore(
-      fast_loop, /* Function to implement the task */
-      "fast loop", /* Name of the task */
-      10000,  /* Stack size in words */
-      NULL,  /* Task input parameter */
-      1,  /* Priority of the task */
-      &fast,  /* Task handle. */
-      0); /* Core where the task should run */
   esp_task_wdt_init(WDT_TIMEOUT, true);  // Enable panic so ESP32 restarts, esp_task_wdt_reset(); feeds watchdog
   esp_task_wdt_add(NULL);  // Add current thread (loopTask) to WDT
   //Serial.print("Setup Complete");
@@ -165,115 +151,85 @@ void get_battery()  //calculates battery voltage based on voltage divider input 
 {
   if ((millis() - batloop) > 1000) //samples every second to avoid flickering
   {
-    reserve_data();
     volts = (float(analogRead(volt_pin)) / float(310.0)) * 1.29;
-    release_data();
     batloop = millis();
   }
 }
 
 void failsafe() //failsafe mode, shuts off all motors
 {
-  reserve_data();
-  Status = "failsafe";
-  release_data();
-}
-void reserve_data()
-{
-  xSemaphoreTake(dataMutex, portMAX_DELAY);
-}
-void release_data()
-{
-  xSemaphoreGive(dataMutex);  // Release the mutex afterwards
-}
-
-//-------tasks----------
-void fast_loop(void *pvparameters)
-{
-  for(;;)
-  {
-    reserve_data();
-    LEDStatus = Status;
-    rpm = new_rpm; //stores rpm from main loop task to be used in this task
-    rc_status = rc;
-    memcpy(temp_duty, duty, sizeof(duty));
-    release_data();
-    if(LEDStatus != "failsafe")
-    {
-      if(rpm > 400)
-      {
-        rotation_angle();
-        if (isAngleInRange(LEDheading, 10)) // LED turns on within ±10° of heading
-        {
-          LEDStatus = "heading on";
-        }
-        else //turns off led at 50 degree rotation
-        {
-          LEDStatus = "heading off";
-        }
-        if(temp_duty[2] > 55 || temp_duty[2] < 45)
-        {
-          translate();
-        }
-        else 
-        {
-          spin();
-        }
-        
-      } //-------------------------------------------
-      else if(temp_duty[3] > 10)                              //spin command
-      {
-        spin();
-      }
-      else if(reversed == true) //unstick using the right stick
-      {
-        motorL = map(temp_duty[2], 0, 100, -1000, 1000);
-        motorR = map(temp_duty[2], 0, 100, 1000, -1000);
-      }
-      else //tank drive mode
-      {
-        motorL = map(temp_duty[2], 0, 100, -100, 100) + map(temp_duty[1], 0, 100, -40, 40);
-        motorR = map(temp_duty[2], 0, 100, 100, -100) + map(temp_duty[1], 0, 100, -40, 40);
-      }
-      if(rpm < 400)
-      {
-        LEDStatus = "armed";
-      }
-      if(temp_duty[6] > 50)
-      {
-        reversed = true;
-      }
-      else
-      {
-        reversed = false;
-      }
-    }
-    else
-    {
-      motorR = 0; //if in failsafe mode, motors off
+      LEDStatus = "failsafe";
+      motorR = 0;
       motorL = 0;
-    }
-    reserve_data();
-    loop_time = esp_timer_get_time() - loop_start;
-    release_data();
-    update_motors();
-    loop_start = esp_timer_get_time();
-    updateLED();
-  }
+      updateLED();
 }
 
 //----------------------------------------------------------------------------------------
 void loop() 
 {
-  calcrpm();
   get_battery();
   update_channels();
   heading_adj();
   heading_funct();
+  calcrpm();
   if(duty[5] > 50)
   {
     wifi_mode();
   }
-  vTaskDelay(10);
+  if(duty[6] > 50)
+  {
+    reversed = true;
+  }
+  else
+  {
+    reversed = false;
+  }
+    if(rpm > 400)
+    {
+     angle = rotation_angle();
+     if (isAngleInRange(LEDheading, 10)) // LED turns on within ±10° of heading
+     {
+       LEDStatus = "heading on";
+     }
+     else if(motor_on == true)
+     {
+       LEDStatus = "motor on";
+     }
+     else //turns off led
+     {
+       LEDStatus = "heading off";
+     }
+     if(duty[2] > 55 || duty[2] < 45)
+     {
+      translate();
+     }
+     else 
+     {
+      spin();
+     }
+    
+    } //-------------------------------------------
+    else if(duty[3] > 10)                              //spin command
+    {
+      spin();
+    }
+    else if(reversed == true) //unstick using the right stick
+    {
+      motorL = map(duty[2], 0, 100, -1000, 1000);
+      motorR = map(duty[2], 0, 100, 1000, -1000);
+    }
+    else //tank drive mode
+    {
+      motorL = map(duty[2], 0, 100, -100, 100) + map(duty[1], 0, 100, -40, 40);
+      motorR = map(duty[2], 0, 100, 100, -100) + map(duty[1], 0, 100, -40, 40);
+    }
+    if(rpm < 400)
+    {
+      LEDStatus = "armed";
+    }
+  updateLED();
+  loop_time = esp_timer_get_time() - loop_start;
+  update_motors();
+  loop_start = esp_timer_get_time();
 
 }

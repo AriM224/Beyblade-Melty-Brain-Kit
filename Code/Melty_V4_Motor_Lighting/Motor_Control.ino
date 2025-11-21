@@ -1,21 +1,22 @@
 void update_motors()
 {
-  if(((esp_timer_get_time() - motor1sent) > 100) && (esp_timer_get_time() - motor2sent) > 100 && motor1send == true)
+  if(((esp_timer_get_time() - motorRsent) > 100) && (esp_timer_get_time() - motorLsent) > 100 && motorRsend == true)
   {
-    esc1.sendThrottle3D(motor1);
-    motor1send = false;
-    motor1sent = esp_timer_get_time();
+    escR.sendThrottle3D(motorR);
+    motorRsend = false;
+    motorRsent = esp_timer_get_time();
   }
-  if((esp_timer_get_time() - motor2sent) > 100 && (esp_timer_get_time() - motor1sent) > 100 && motor1send == false)
+  if((esp_timer_get_time() - motorLsent) > 100 && (esp_timer_get_time() - motorRsent) > 100 && motorRsend == false)
   {
-    esc2.sendThrottle3D(motor2);
-    motor1send = true;
-    motor2sent = esp_timer_get_time();
+    escL.sendThrottle3D(motorL);
+    motorRsend = true;
+    motorLsent = esp_timer_get_time();
   }
 }
 
 void spin()
 {
+  motor_on = false;
   if(reversed == true)
   {
     spinspeed = map(duty[3], 0, 100, 0, -1000);
@@ -24,13 +25,16 @@ void spin()
   {
     spinspeed = map(duty[3], 0, 100, 0, 1000);
   }
-  motor1 = spinspeed;
-  motor2 = spinspeed;
+  motorR = spinspeed;
+  motorL = spinspeed;
 }
 void translate()
 {
+  unsigned long long currentime;
+  unsigned long long duration; //defines variable for decel duration in microseconds
+  int transpeed; //variable to store movement speed 0-100 from ch2 duty
   currentime = esp_timer_get_time();
-  duration = spintime * float(percentdecel *.01); //duration of total decel pulse
+  duration = spintimefunct() * float(percentdecel *.01); //duration of total decel pulse
   dtime = currentime - startime; //calculates time it's been since start of decel, will need a way to start the timer when decel initiates
   if(reversed == true)
   {
@@ -56,8 +60,9 @@ void translate()
           }
           if(dtime < duration)
           {
-            motor1 = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * 0.01)); //creates sine wave motor pulsing
-            motor2 = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * -0.01)); //creates inverse sine wave motor pulsing
+            motorR = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * 0.02)); //creates sine wave motor pulsing
+            motorL = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * -0.02)); //creates inverse sine wave motor pulsing
+            motor_on = true;
           }
           else
           {
@@ -78,8 +83,9 @@ void translate()
           }
           if(dtime < duration)
           {
-            motor2 = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * 0.01)); //creates sine wave motor pulsing
-            motor1 = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * -0.01)); //creates inverse sine wave motor pulsing
+            motorL = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * 0.02)); //creates sine wave motor pulsing
+            motorR = spinspeed * float(1 - float(1 - float(float(cos(2* PI * (float(dtime) / duration)) + 1)/2.0)) * float(transpeed * -0.02)); //creates inverse sine wave motor pulsing
+            motor_on = true;
           }
           else
           {
