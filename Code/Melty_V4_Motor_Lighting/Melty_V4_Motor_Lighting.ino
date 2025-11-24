@@ -17,7 +17,7 @@
 #define ACCEL_MAX_SCALE 400
 #define ACCEL_I2C_ADDRESS 0x19 //0x18 for adafruit accel, 0x19 for sparkfun
 LIS331 xl; //accelerometer object
-const int accradius = 20; //radius where the g force sensor is located in millimeters
+const int accradius = 15; //radius where the g force sensor is located in millimeters
 
 //-------ESC config--------
 #define escR_gpio GPIO_NUM_36 //right esc pin assignment
@@ -45,8 +45,8 @@ IBusBM IBus;    // IBus object
 const int NUM_CHANNELS = 6; //number of reciever channels to use
 
 //------Driving characteristcs------
-const int LEDheading = 330; //degree where the LED heading is centered, adjust for tuning heading vs driving direction
-const int percentdecel = 20; //percentage of rotation the translation deceleration wave occurs for each motor. Should be <= 50
+const int LEDheading = 135; //degree where the LED heading is centered, adjust for tuning heading vs driving direction
+const int percentdecel = 15; //percentage of rotation the translation deceleration wave occurs for each motor. Should be <= 50
 //const int accel_ag = 45; //0(least aggressive) - 100(most aggressive)
 //const float accel_speed = (101 - accel_ag) * 0.02;
 
@@ -56,7 +56,7 @@ const char *password = "meltybrain"; //wifi password
 // Start TelnetStream: Enter telnet 192.168.4.1 in CMD to view output
 
 //-----other constants-------
-const int denom = round(1 / sqrt(0.00001118*accradius)); //calculates denominator ahead of time to reduce unnecessary calculations;
+const int denom = round((1.0 / sqrt(0.00001118*accradius))*3); //calculates denominator ahead of time to reduce unnecessary calculations;
 const int OFFSET_ADDR = 0;  // EEPROM address to store rpm offset
 const int WDT_TIMEOUT = 5;  // seconds
 
@@ -187,7 +187,7 @@ void loop()
     if(rpm > 400)
     {
      angle = rotation_angle();
-     if (isAngleInRange(LEDheading, 10)) // LED turns on within ±10° of heading
+     if (isAngleInRange(LEDheading, 20)) // LED turns on within ±10° of heading
      {
        LEDStatus = "heading on";
      }

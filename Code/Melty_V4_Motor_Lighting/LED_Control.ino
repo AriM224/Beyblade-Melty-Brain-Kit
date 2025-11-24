@@ -54,8 +54,8 @@ void updateLED()
     stripstart = millis();
     top_strip.clear();
     bottom_strip.clear();
-    top_strip.fill(top_strip.Color(100, 0, 0), 0, round(10 - (abs(volts - 12.4) * 5))); 
-    bottom_strip.fill(bottom_strip.Color(100, 0, 0), 8 -round(8 - (abs(volts - 12.4) * 5)), 8);
+    top_strip.fill(top_strip.Color(100, 0, 0), 0, round(10 - (abs(volts - 12.5) * 5))); 
+    bottom_strip.fill(bottom_strip.Color(100, 0, 0), 8 -round(8 - (abs(volts - 12.5) * 5)), 8);
     }
   }
   else if (LEDStatus == "heading on") 
@@ -70,8 +70,8 @@ void updateLED()
   }
   else if (LEDStatus == "motor on") 
   {
-    top_strip.fill(top_strip.Color(0, 0, 255), 0, 10);
-    bottom_strip.fill(bottom_strip.Color(0, 0, 255), 0, 10);
+    top_strip.fill(top_strip.Color(255, 0, 0), 0, 10);
+    bottom_strip.fill(bottom_strip.Color(255, 0, 0), 0, 10);
   }
   else 
   {

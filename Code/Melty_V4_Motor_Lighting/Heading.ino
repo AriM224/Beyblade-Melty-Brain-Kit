@@ -96,7 +96,7 @@ void heading_funct()
 }
 void heading_adj()
 {
-  if(offset <= 0.5)
+  if(offset < 0.8 or offset > 1.2)
   {
     offset = 1.0;
   }
