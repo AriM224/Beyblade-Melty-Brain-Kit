@@ -19,11 +19,13 @@ void spin()
   motor_on = false;
   if(reversed == true)
   {
-    spinspeed = map(duty[3], 0, 100, 0, -1000);
+    //pinspeed = map(duty[3], 0, 100, 0, -1000);
+    spinspeed = max(map(duty[3], 0, 100, 0, -1000), long(-((acc_rate * rpm) + 200)));
   }
   else
   {
-    spinspeed = map(duty[3], 0, 100, 0, 1000);
+    //spinspeed = map(duty[3], 0, 100, 0, 1000);
+    spinspeed = min(map(duty[3], 0, 100, 0, 1000), long(acc_rate * rpm) + 200);
   }
   motorR = spinspeed;
   motorL = spinspeed;
@@ -38,12 +40,14 @@ void translate()
   dtime = currentime - startime; //calculates time it's been since start of decel, will need a way to start the timer when decel initiates
   if(reversed == true)
   {
-    spinspeed = map(duty[3], 0, 100, 0, -1000);
+    //spinspeed = map(duty[3], 0, 100, 0, -1000);
+    spinspeed = max(map(duty[3], 0, 100, 0, -1000), long(-((acc_rate * rpm) + 200)));
     transpeed = map(duty[2], 0, 100, -100, 100);  //-100 to 100 and due to formula, - will automatically switch motor direction without needing separate if statements
   }
   else
   {
-    spinspeed = map(duty[3], 0, 100, 0, 1000);
+    //spinspeed = map(duty[3], 0, 100, 0, 1000);
+    spinspeed = min(map(duty[3], 0, 100, 0, 1000), long(acc_rate * rpm) + 200);
     transpeed = map(duty[2], 0, 100, 100, -100);  //-100 to 100 and due to formula, - will automatically switch motor direction without needing separate if statements
   }
   if(angle > 180)
