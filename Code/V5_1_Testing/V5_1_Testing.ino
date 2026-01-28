@@ -217,7 +217,7 @@ void loop()
      }
      else //turns off led
      {
-       LEDStatus = "heading off";
+       LEDStatus = "boot";
      }
      if(duty[2] > 60 || duty[2] < 40)
      {
