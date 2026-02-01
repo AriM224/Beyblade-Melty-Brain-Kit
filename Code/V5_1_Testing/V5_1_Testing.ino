@@ -24,6 +24,7 @@ const int accradius = 15; //radius where the g force sensor is located in millim
 #define escL_gpio GPIO_NUM_37  //left esc pin assignment
 DShotESC escR;  // create servo object to control the left esc
 DShotESC escL;  // create servo object to control the right esc
+const bool reverse_1_motor = false;  //if both motors spin the same direction making the bot drive forward instead of spinning
 //library uses values between -999 and 999 to control speed of esc
 
 //---------Other pin assignemnts----------
@@ -126,12 +127,10 @@ void setup()
   bottom_strip.clear();
   LEDStatus = "boot";
   updateLED();
-  delay(2000);
   ArduinoOTA.setHostname("esp32-ap"); //wifi ota config
   ArduinoOTA.setPassword("admin"); //enter this if window opens in arduino IDE asking for pswrd
   escR.install(escR_gpio, RMT_CHANNEL_3); //associates pins and RMT channels to esc objects
   escL.install(escL_gpio, RMT_CHANNEL_2);
-
   for (int i = 0; i < 2500; i++) //arm esc's
   {
     escR.writeData(0,true);
