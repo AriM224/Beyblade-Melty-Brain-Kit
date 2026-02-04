@@ -60,7 +60,7 @@ const char *password = "meltybrain"; //wifi password
 //-----other constants-------
 const int denom = round((1.0 / sqrt(0.00001118*accradius))*3); //calculates denominator ahead of time to reduce unnecessary calculations;
 const int OFFSET_ADDR = 0;  // EEPROM address to store rpm offset
-const int WDT_TIMEOUT = 5;  // seconds
+const int WDT_TIMEOUT = 1;  // seconds
 
 //=============GLOBAL VARIABLES==================
 //-------LED control-------
@@ -107,8 +107,6 @@ int batloop; //variable for tracking battery update loop
 long loop_time;
 long loop_start;
 bool motor_on = false;
-int graph[200];
-int n = 0;
 
 //--------------------------------------------------------------------------------------------
 void setup() 
@@ -128,7 +126,7 @@ void setup()
   LEDStatus = "boot";
   updateLED();
   ArduinoOTA.setHostname("esp32-ap"); //wifi ota config
-  ArduinoOTA.setPassword("admin"); //enter this if window opens in arduino IDE asking for pswrd
+  ArduinoOTA.setPassword(nullptr); //no password required to upload code
   escR.install(escR_gpio, RMT_CHANNEL_3); //associates pins and RMT channels to esc objects
   escL.install(escL_gpio, RMT_CHANNEL_2);
   for (int i = 0; i < 2500; i++) //arm esc's
@@ -216,7 +214,7 @@ void loop()
      }
      else //turns off led
      {
-       LEDStatus = "boot";
+       LEDStatus = "off";
      }
      if(duty[2] > 60 || duty[2] < 40)
      {

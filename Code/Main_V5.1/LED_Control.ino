@@ -12,26 +12,25 @@ void updateLED()
 
   const int NUM_COLORS = sizeof(ringColors) / sizeof(ringColors[0]);
 
-  // advance animation index only on interval
-  if (currentMillis - lastUpdate > animSpeed) 
-  {
-    animIndex += direction;
-
-    // bounce logic for chase animation
-    if (animIndex >= NUMPIXELST) {
-      animIndex = NUMPIXELST;
-      direction = -1;
-    } else if (animIndex <= 0) {
-      animIndex = 0;
-      direction = 1;
-    }
-
-    lastUpdate = currentMillis;
-  }
-
   // LED logic depending on status
-  if (LEDStatus == "failsafe") 
-  {
+    if (LEDStatus == "failsafe") 
+    {
+      // advance animation index only on interval
+    if (currentMillis - lastUpdate > animSpeed) 
+    {
+      animIndex += direction;
+
+      // bounce logic for chase animation
+      if (animIndex >= NUMPIXELST) {
+        animIndex = NUMPIXELST;
+        direction = -1;
+      } else if (animIndex <= 0) {
+        animIndex = 0;
+        direction = 1;
+      }
+
+      lastUpdate = currentMillis;
+    }
     if (rc_status == false) 
     {
       // yellow bounce chase
@@ -64,13 +63,17 @@ void updateLED()
     stripstart = millis();
     top_strip.clear();
     bottom_strip.clear();
-    if(volts > 14)
+    if(volts > 13)
     {
       graph = round(NUMPIXELST - (abs((volts/4.0) - 4.2) * NUMPIXELST * 1.4));
     }
     else
     {
       graph = round(NUMPIXELST - (abs((volts/3.0) - 4.2) * NUMPIXELST * 1.4));
+    }
+    if(graph < 1)
+    {
+      graph = 1;
     }
     if(rvs_led_B == true)
     {
@@ -107,7 +110,7 @@ void updateLED()
   }
   else if (LEDStatus == "celebrate")
   {
-    if (currentMillis - lastUpdate > animSpeed)
+    if (currentMillis - lastUpdate > 10)
     {
       ringRadius++;
 
@@ -129,7 +132,7 @@ void updateLED()
     bottom_strip.setPixelColor(ringRadius, c);
   }
   
-  else if (LEDStatus == "boot") //not used
+  else if (LEDStatus == "boot") //white LED to indicating restart
   {
     top_strip.fill(top_strip.Color(50, 50, 50), 0, 10);
     bottom_strip.fill(bottom_strip.Color(50, 50, 50), 0, 10);

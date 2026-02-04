@@ -24,17 +24,6 @@ long long spintimefunct()
   {
     spintime = 1000; //some random placeholder
   }
-  if(rpm > 2000)
-  {
-    graph[n] = spintime;
-    if (n >= 199)
-    {
-      n = 0;
-    }
-    else{
-      n = n + 1;
-    }
-  }
   return spintime;
 }
 

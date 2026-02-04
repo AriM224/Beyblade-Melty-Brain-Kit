@@ -2,7 +2,14 @@ void update_motors()
 {
   if(((esp_timer_get_time() - motorRsent) > 100) && (esp_timer_get_time() - motorLsent) > 100 && motorRsend == true)
   {
-    escR.sendThrottle3D(motorR);
+    if(reverse_1_motor == true)
+    {
+      escR.sendThrottle3D(-motorR);
+    }
+    else
+    {
+      escR.sendThrottle3D(motorR);
+    }
     motorRsend = false;
     motorRsent = esp_timer_get_time();
   }
